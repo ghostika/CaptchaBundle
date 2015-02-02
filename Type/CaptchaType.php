@@ -75,7 +75,9 @@ class CaptchaType extends AbstractType
             $this->key,
             $options['invalid_message'],
             $options['bypass_code'],
-            $options['humanity']
+            $options['humanity'],
+            $options['is_hidden'],
+            $options['max_attempts']
         );
 
         $builder->addEventListener(FormEvents::POST_BIND, array($validator, 'validate'));
@@ -89,6 +91,7 @@ class CaptchaType extends AbstractType
     public function buildView(FormView $view, FormInterface $form, array $options)
     {
         $isHuman = false;
+        $is_hidden = false;
 
         if ($options['reload'] && !$options['as_url']) {
             throw new \InvalidArgumentException('GregwarCaptcha: The reload option cannot be set without as_url, see the README for more information');
@@ -98,6 +101,16 @@ class CaptchaType extends AbstractType
             $humanityKey = $this->key.'_humanity';
             if ($this->session->get($humanityKey, 0) > 0) {
                 $isHuman = true;
+            }
+        }
+
+        if ($options['is_hidden']) {
+            $numberOfAttemptsKey = $this->key . '_nmbAttempts';
+            if ($attempt = $this->session->get($numberOfAttemptsKey,0) < $options['max_attempts']) {
+                $is_hidden = true;
+                if ($attempt == 0) {
+                    $this->session->set($numberOfAttemptsKey, 1);
+                }
             }
         }
 
@@ -118,7 +131,8 @@ class CaptchaType extends AbstractType
             'image_id'          => uniqid('captcha_'),
             'captcha_code'      => $this->generator->getCaptchaCode($options),
             'value'             => '',
-            'is_human'          => $isHuman
+            'is_human'          => $isHuman,
+            'is_hidden'         => $is_hidden,
         ));
 
         $persistOptions = array();
@@ -136,6 +150,10 @@ class CaptchaType extends AbstractType
     {
         $this->options['mapped'] = false;
         $resolver->setDefaults($this->options);
+        $resolver->setDefaults([
+                'is_hidden' => false,
+                'max_attempts' => 1,
+            ]);
     }
 
     /**

@@ -52,7 +52,7 @@ class CaptchaValidator
      * @param string $invalidMessage
      * @param string|null $bypassCode
      */
-    public function __construct(TranslatorInterface $translator, SessionInterface $session, $key, $invalidMessage, $bypassCode, $humanity)
+    public function __construct(TranslatorInterface $translator, SessionInterface $session, $key, $invalidMessage, $bypassCode, $humanity, $isHidden, $maxAttempts)
     {
         $this->translator       = $translator;
         $this->session          = $session;
@@ -60,6 +60,8 @@ class CaptchaValidator
         $this->invalidMessage   = $invalidMessage;
         $this->bypassCode       = $bypassCode;
         $this->humanity         = $humanity;
+        $this->isHidden         = $isHidden;
+        $this->maxAttempts      = $maxAttempts;
     }
 
     /**
@@ -76,6 +78,14 @@ class CaptchaValidator
             $humanity = $this->getHumanity();
             if ($humanity > 0) {
                 $this->updateHumanity($humanity-1);
+                return;
+            }
+        }
+
+        if ($this->isHidden) {
+            $numberOfAttemptsKey = $this->key . '_nmbAttempts';
+            if ($this->session->get($numberOfAttemptsKey,0) < $this->maxAttempts) {
+                $this->updateNumberOfAttempts($numberOfAttemptsKey);
                 return;
             }
         }
@@ -133,6 +143,12 @@ class CaptchaValidator
         }
 
         return null;
+    }
+
+    protected function updateNumberOfAttempts($key)
+    {
+        $value = $this->session->get($key, 0);
+        $this->session->set($key, $value + 1);
     }
 
     /**
